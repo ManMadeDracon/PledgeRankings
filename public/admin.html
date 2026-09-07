@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Update Points</title>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 400px; margin: 40px auto; padding: 20px; }
+    .admin-panel { background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ccc; }
+    input, select, button { display: block; margin: 12px 0; padding: 10px; width: 100%; box-sizing: border-box; }
+    .back-link { display: inline-block; margin-bottom: 15px; color: #666; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <a href="index.html" class="back-link">← Back to Leaderboard</a>
+
+  <div class="admin-panel">
+    <h2>🔒 Admin Tip/Points Panel</h2>
+    <form id="tipForm">
+      <label>Select Person:</label>
+      <select id="personSelect" required><option>Loading...</option></select>
+
+      <label>Points to Add:</label>
+      <input type="number" id="pointsInput" placeholder="e.g. 5" required />
+
+      <label>Admin Password:</label>
+      <input type="password" id="passwordInput" placeholder="Enter secret password" required />
+
+      <button type="submit">Submit Points</button>
+    </form>
+    <p id="statusMsg"></p>
+  </div>
+
+  <script>
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Populate Person Dropdown
+    async function loadPeople() {
+      const { data, error } = await supabaseClient
+        .from('rankings')
+        .select('id, name')
+        .order('name', { ascending: true });
+
+      if (error) return console.error(error);
+
+      const select = document.getElementById('personSelect');
+      select.innerHTML = '';
+      data.forEach(item => {
+        select.innerHTML += `<option value="${item.id}">${item.name}</option>`;
+      });
+    }
+
+    // Handle Form Submission
+    document.getElementById('tipForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const status = document.getElementById('statusMsg');
+      status.innerText = "Submitting...";
+
+      const personId = document.getElementById('personSelect').value;
+      const points = document.getElementById('pointsInput').value;
+      const adminPassword = document.getElementById('passwordInput').value;
+
+      const res = await fetch('/api/update-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personId, points, adminPassword })
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        status.style.color = "green";
+        status.innerText = "Points added successfully!";
+        document.getElementById('pointsInput').value = '';
+      } else {
+        status.style.color = "red";
+        status.innerText = result.error || "Failed to update";
+      }
+    });
+
+    loadPeople();
+  </script>
+</body>
+</html>

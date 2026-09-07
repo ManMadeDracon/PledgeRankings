@@ -1,143 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <title>Live Rankings</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body {
-            font-family: sans-serif;
-            max-width: 600px;
-            margin: 40px auto;
-            padding: 20px;
-        }
-
-        .leaderboard {
-            border: 1px solid #ccc;
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        .person {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .admin-panel {
-            margin-top: 30px;
-            background: #f9f9f9;
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        input,
-        select,
-        button {
-            display: block;
-            margin: 10px 0;
-            padding: 8px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Live Rankings</title>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+    .leaderboard { border: 1px solid #ccc; padding: 15px; border-radius: 8px; }
+    .person { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+    
+    /* Corner Admin Link Icon */
+    .admin-icon {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      text-decoration: none;
+      padding: 12px 15px;
+      border-radius: 50%;
+      font-size: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+    .admin-icon:hover { transform: scale(1.1); }
+  </style>
 </head>
-
 <body>
 
-    <h1>🏆 Live Leaderboard</h1>
-    <div id="leaderboard" class="leaderboard">Loading...</div>
+  <h1>🏆 Live Leaderboard</h1>
+  <div id="leaderboard" class="leaderboard">Loading...</div>
 
-    <div class="admin-panel">
-        <h3>🔒 Admin Tip/Points Panel</h3>
-        <form id="tipForm">
-            <label>Select Person:</label>
-            <select id="personSelect" required></select>
+  <!-- Corner Lock Icon -->
+  <a href="admin.html" class="admin-icon" title="Admin Panel">🔒</a>
 
-            <label>Points to Add:</label>
-            <input type="number" id="pointsInput" placeholder="e.g. 5" required />
+  <script>
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-            <label>Admin Password:</label>
-            <input type="password" id="passwordInput" placeholder="Enter secret password" required />
+    async function loadRankings() {
+      const { data, error } = await supabaseClient
+        .from('rankings')
+        .select('*')
+        .order('points', { ascending: false });
 
-            <button type="submit">Submit Points</button>
-        </form>
-        <p id="statusMsg"></p>
-    </div>
+      if (error) return console.error(error);
 
-    <script>
-        // Replace with your actual Supabase credentials
-        const SUPABASE_URL = "https://knctohwxfytzjuonrmqx.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuY3RvaHd4Znl0emp1b25ybXF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTE2MzQsImV4cCI6MjEwNDM4NzYzNH0.-kOQXzSkdK7lEmOF5QPJ6kbINeGDzB9Jw4XNkexM_CM";
+      const listDiv = document.getElementById('leaderboard');
+      listDiv.innerHTML = '';
 
-        // Renamed variable to 'supabaseClient' to avoid name collision
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      data.forEach(item => {
+        listDiv.innerHTML += `
+          <div class="person">
+            <span><strong>${item.name}</strong></span>
+            <span>${item.points} pts</span>
+          </div>`;
+      });
+    }
 
-        // Fetch and display rankings
-        async function loadRankings() {
-            const {data, error} = await supabaseClient
-                .from('rankings')
-                .select('*')
-                .order('points', {ascending: false});
-
-            if (error) return console.error(error);
-
-            const listDiv = document.getElementById('leaderboard');
-            const select = document.getElementById('personSelect');
-            listDiv.innerHTML = '';
-            select.innerHTML = '';
-
-            data.forEach(item => {
-                listDiv.innerHTML += `
-        <div class="person">
-          <span><strong>${item.name}</strong></span>
-          <span>${item.points} pts</span>
-        </div>`;
-
-                select.innerHTML += `<option value="${item.id}">${item.name}</option>`;
-            });
-        }
-
-        // Subscribe to Realtime Database Updates
-        supabaseClient
-            .channel('realtime-rankings')
-            .on('postgres_changes', {event: '*', schema: 'public', table: 'rankings'}, () => {
-                loadRankings();
-            })
-            .subscribe();
-
-        // Handle Form Submission
-        document.getElementById('tipForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const status = document.getElementById('statusMsg');
-            status.innerText = "Submitting...";
-
-            const personId = document.getElementById('personSelect').value;
-            const points = document.getElementById('pointsInput').value;
-            const adminPassword = document.getElementById('passwordInput').value;
-
-            const res = await fetch('/api/update-points', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({personId, points, adminPassword})
-            });
-
-            const result = await res.json();
-            if (res.ok) {
-                status.style.color = "green";
-                status.innerText = "Points added successfully!";
-                document.getElementById('pointsInput').value = '';
-            } else {
-                status.style.color = "red";
-                status.innerText = result.error || "Failed to update";
-            }
-        });
-
-        // Initial Load
+    // Realtime Database Updates
+    supabaseClient
+      .channel('realtime-rankings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rankings' }, () => {
         loadRankings();
-    </script>
-</body>
+      })
+      .subscribe();
 
+    loadRankings();
+  </script>
+</body>
 </html>
