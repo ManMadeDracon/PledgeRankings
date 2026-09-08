@@ -9,63 +9,39 @@
     body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
     .leaderboard { border: 1px solid #ccc; padding: 15px; border-radius: 8px; }
     .person { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
-    
-    /* Corner Admin Link Icon */
-    .admin-icon {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: #333;
-      color: white;
-      text-decoration: none;
-      padding: 12px 15px;
-      border-radius: 50%;
-      font-size: 20px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      transition: transform 0.2s;
-    }
-    .admin-icon:hover { transform: scale(1.1); }
+    .corner-btn { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 16px; border-radius: 30px; text-decoration: none; font-size: 14px; }
   </style>
 </head>
 <body>
-
   <h1>🏆 Live Leaderboard</h1>
   <div id="leaderboard" class="leaderboard">Loading...</div>
-
-  <!-- Corner Lock Icon -->
-  <a href="admin.html" class="admin-icon" title="Admin Panel">🔒</a>
+  <a href="login.html" id="authBtn" class="corner-btn">🔒 Dashboard Login</a>
 
   <script>
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    async function checkAuth() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session) {
+        document.getElementById('authBtn').innerText = '⚡ Go to Dashboard';
+        document.getElementById('authBtn').href = 'dashboard.html';
+      }
+    }
+
     async function loadRankings() {
-      const { data, error } = await supabaseClient
-        .from('rankings')
-        .select('*')
-        .order('points', { ascending: false });
-
-      if (error) return console.error(error);
-
+      const { data } = await supabaseClient.from('rankings').select('*').order('points', { ascending: false });
       const listDiv = document.getElementById('leaderboard');
       listDiv.innerHTML = '';
-
-      data.forEach(item => {
-        listDiv.innerHTML += `
-          <div class="person">
-            <span><strong>${item.name}</strong></span>
-            <span>${item.points} pts</span>
-          </div>`;
+      data?.forEach(item => {
+        listDiv.innerHTML += `<div class="person"><span><strong>${item.name}</strong></span><span>${item.points} pts</span></div>`;
       });
     }
 
-    // Realtime Database Updates
-    supabaseClient
-      .channel('realtime-rankings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rankings' }, () => {
-        loadRankings();
-      })
+    supabaseClient.channel('realtime-rankings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rankings' }, loadRankings)
       .subscribe();
 
+    checkAuth();
     loadRankings();
   </script>
 </body>
