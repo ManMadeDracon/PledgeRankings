@@ -1,6 +1,13 @@
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let sessionToken = '';
 let currentUserRole = 'standard';
+let personMap = {};
+
+// Log Pagination Variables
+let logOffset = 0;
+const LOG_LIMIT = 10;
+let isLoadingLogs = false;
+let hasMoreLogs = true;
 
 async function init() {
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -13,13 +20,15 @@ async function init() {
 
   document.getElementById('userInfo').innerText = `Logged in as: ${session.user.email} (${currentUserRole.toUpperCase()})`;
 
+  // Load people first to build personMap before rendering logs
+  await loadPeople();
+
   if (currentUserRole === 'superuser') {
     document.querySelectorAll('.superuser-only').forEach(el => el.style.display = 'block');
-    loadLogs();
+    setupLogsScrollListener();
+    loadLogs(true);
     loadUsers();
   }
-
-  loadPeople();
 }
 
 async function loadPeople() {
@@ -29,7 +38,9 @@ async function loadPeople() {
   select.innerHTML = '';
   if (list) list.innerHTML = '';
 
+  personMap = {};
   data?.forEach(person => {
+    personMap[person.id] = person.name;
     select.innerHTML += `<option value="${person.id}">${person.name} (${person.points} pts)</option>`;
     if (list && currentUserRole === 'superuser') {
       list.innerHTML += `<li>${person.name} <button onclick="removePerson(${person.id})">Remove</button></li>`;
@@ -37,24 +48,72 @@ async function loadPeople() {
   });
 }
 
-async function loadLogs() {
-  const { data } = await supabaseClient.from('tip_logs').select('*').order('created_at', { ascending: false });
-  const tbody = document.querySelector('#logsTable tbody');
-  tbody.innerHTML = '';
+// Paginated Logs Loader
+async function loadLogs(reset = false) {
+  if (reset) {
+    logOffset = 0;
+    hasMoreLogs = true;
+    document.querySelector('#logsTable tbody').innerHTML = '';
+  }
 
-  data?.forEach(log => {
+  if (!hasMoreLogs || isLoadingLogs) return;
+  isLoadingLogs = true;
+
+  const { data, error } = await supabaseClient
+    .from('tip_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .range(logOffset, logOffset + LOG_LIMIT - 1);
+
+  if (error || !data || data.length === 0) {
+    hasMoreLogs = false;
+    isLoadingLogs = false;
+    return;
+  }
+
+  if (data.length < LOG_LIMIT) {
+    hasMoreLogs = false;
+  }
+
+  const tbody = document.querySelector('#logsTable tbody');
+
+  data.forEach(log => {
+    // Map person IDs to recipient names
+    const recipientNames = (log.person_ids || [])
+      .map(id => personMap[id] || 'Unknown')
+      .join(', ');
+
     const rowClass = log.is_undone ? 'undone' : '';
     const actionBtn = log.is_undone ? 'Undone' : `<button onclick="undoTip(${log.id})">Undo</button>`;
+    const pointsFormatted = log.points_changed > 0 ? `+${log.points_changed}` : log.points_changed;
+
     tbody.innerHTML += `
       <tr class="${rowClass}">
         <td>${new Date(log.created_at).toLocaleString()}</td>
-        <td>${log.user_email}</td>
-        <td>${log.points_changed}</td>
+        <td>${log.user_email || 'System'}</td>
+        <td><strong>${recipientNames}</strong></td>
+        <td>${pointsFormatted}</td>
         <td>${log.reason || ''}</td>
         <td>${log.description || ''}</td>
         <td>${actionBtn}</td>
       </tr>`;
   });
+
+  logOffset += data.length;
+  isLoadingLogs = false;
+}
+
+// Scroll listener for lazy loading logs
+function setupLogsScrollListener() {
+  const scrollContainer = document.getElementById('logsScrollContainer');
+  if (scrollContainer) {
+    scrollContainer.addEventListener('scroll', () => {
+      const nearBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 20;
+      if (nearBottom) {
+        loadLogs(false);
+      }
+    });
+  }
 }
 
 async function loadUsers() {
@@ -75,7 +134,7 @@ async function loadUsers() {
   });
 }
 
-// Event Listeners
+// Form Handlers
 document.getElementById('tipForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const personIds = Array.from(document.getElementById('personSelect').selectedOptions).map(o => o.value);
@@ -90,17 +149,16 @@ document.getElementById('tipForm').addEventListener('submit', async (e) => {
     statusMsg.style.color = 'green';
     statusMsg.innerText = 'Points updated successfully!';
     loadPeople();
-    if (currentUserRole === 'superuser') loadLogs();
+    if (currentUserRole === 'superuser') loadLogs(true);
   } else {
     statusMsg.style.color = 'red';
     statusMsg.innerText = result.error;
   }
 });
 
-// Admin Handlers
 async function undoTip(logId) {
   await API.adminAction(sessionToken, 'undo_tip', { logId });
-  loadLogs();
+  loadLogs(true);
   loadPeople();
 }
 

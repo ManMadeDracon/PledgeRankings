@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tip Dashboard</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
+
 <body>
 
   <div class="header">
     <h2>⚡ Tip Dashboard</h2>
     <div>
-      <a href="index.html">View Leaderboard</a> | 
+      <a href="index.html">View Leaderboard</a> |
       <a href="#" id="logoutBtn">Logout</a>
     </div>
   </div>
@@ -41,14 +43,22 @@
   <!-- Superuser: Website & Tip Logs -->
   <div class="card superuser-only">
     <h3>📜 Tip Logs & Undo</h3>
-    <table id="logsTable">
-      <thead>
-        <tr>
-          <th>Time</th><th>User</th><th>Points</th><th>Reason</th><th>Description</th><th>Action</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="logs-scroll-container" id="logsScrollContainer">
+      <table id="logsTable">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Logged By</th>
+            <th>Recipient(s)</th>
+            <th>Points</th>
+            <th>Reason</th>
+            <th>Description</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Superuser: Add/Remove People -->
@@ -82,4 +92,5 @@
   <script src="js/api.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
+
 </html>

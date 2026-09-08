@@ -186,3 +186,24 @@ td {
 .error {
     color: red;
 }
+
+/* Scrollable Container for Tip Logs */
+.logs-scroll-container {
+    max-height: 420px; /* Fits roughly 10 rows */
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.logs-scroll-container table {
+    margin-top: 0;
+}
+
+.logs-scroll-container th {
+    position: sticky;
+    top: 0;
+    background: #f9f9f9;
+    box-shadow: 0 1px 0 #ddd;
+    z-index: 1;
+}
