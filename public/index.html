@@ -2,23 +2,51 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Live Rankings</title>
+  <title>Live Rankings & Activity Feed</title>
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
-    .leaderboard { border: 1px solid #ccc; padding: 15px; border-radius: 8px; }
+    body { font-family: sans-serif; max-width: 950px; margin: 40px auto; padding: 20px; }
+    
+    /* Side-by-side Layout */
+    .container { display: flex; gap: 30px; align-items: flex-start; }
+    .left-col { flex: 1.2; }
+    .right-col { flex: 1; background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; }
+
+    .leaderboard { border: 1px solid #ccc; padding: 15px; border-radius: 8px; background: #fff; }
     .person { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
-    .corner-btn { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 16px; border-radius: 30px; text-decoration: none; font-size: 14px; }
+    
+    /* Feed Styling */
+    .feed-list { margin-top: 10px; }
+    .feed-item { padding: 10px 0; border-bottom: 1px solid #e5e5e5; }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-text { font-size: 14px; color: #222; line-height: 1.4; }
+    .feed-desc { font-size: 13px; color: #666; margin-top: 4px; padding-left: 8px; border-left: 2px solid #ccc; }
+
+    .corner-btn { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 16px; border-radius: 30px; text-decoration: none; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
   </style>
 </head>
 <body>
-  <h1>🏆 Live Leaderboard</h1>
-  <div id="leaderboard" class="leaderboard">Loading...</div>
+
+  <div class="container">
+    <!-- Left Column: Leaderboard -->
+    <div class="left-col">
+      <h1>🏆 Live Leaderboard</h1>
+      <div id="leaderboard" class="leaderboard">Loading rankings...</div>
+    </div>
+
+    <!-- Right Column: Recent Activity Feed -->
+    <div class="right-col">
+      <h2>📢 Recent Activity</h2>
+      <div id="feed" class="feed-list">Loading feed...</div>
+    </div>
+  </div>
+
   <a href="login.html" id="authBtn" class="corner-btn">🔒 Dashboard Login</a>
 
   <script>
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let personMap = {}; // ID to Name lookup dictionary
 
     async function checkAuth() {
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -28,17 +56,71 @@
       }
     }
 
+    // Load Leaderboard and store ID -> Name mapping
     async function loadRankings() {
       const { data } = await supabaseClient.from('rankings').select('*').order('points', { ascending: false });
       const listDiv = document.getElementById('leaderboard');
       listDiv.innerHTML = '';
+      
+      personMap = {}; // Reset map
       data?.forEach(item => {
+        personMap[item.id] = item.name;
         listDiv.innerHTML += `<div class="person"><span><strong>${item.name}</strong></span><span>${item.points} pts</span></div>`;
+      });
+
+      // Reload feed after rankings map is ready
+      loadFeed();
+    }
+
+    // Load Recent Activity (Plain Text Format)
+    async function loadFeed() {
+      const { data } = await supabaseClient
+        .from('tip_logs')
+        .select('*')
+        .eq('is_undone', false)
+        .order('created_at', { ascending: false })
+        .limit(15);
+
+      const feedDiv = document.getElementById('feed');
+      if (!data || data.length === 0) {
+        feedDiv.innerHTML = '<p style="color:#777;">No recent activity.</p>';
+        return;
+      }
+
+      feedDiv.innerHTML = '';
+      data.forEach(log => {
+        // Build formatted name list (e.g., "Alice", "Alice and Bob", "Alice, Bob, and Charlie")
+        const names = (log.person_ids || []).map(id => personMap[id] || 'Someone');
+        let formattedNames = '';
+        if (names.length === 1) {
+          formattedNames = names[0];
+        } else if (names.length === 2) {
+          formattedNames = names.join(' and ');
+        } else if (names.length > 2) {
+          formattedNames = names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
+        }
+
+        const pts = Math.abs(log.points_changed);
+        const action = log.points_changed >= 0 ? 'earned' : 'lost';
+        const pointLabel = pts === 1 ? 'point' : 'points';
+        const reasonText = log.reason ? ` for ${log.reason}` : '';
+
+        // Formatted plain text string
+        const mainText = `<strong>${formattedNames}</strong> ${action} ${pts} ${pointLabel}${reasonText}`;
+        const descHtml = log.description ? `<div class="feed-desc">${log.description}</div>` : '';
+
+        feedDiv.innerHTML += `
+          <div class="feed-item">
+            <div class="feed-text">${mainText}</div>
+            ${descHtml}
+          </div>`;
       });
     }
 
-    supabaseClient.channel('realtime-rankings')
+    // Realtime Subscriptions for Leaderboard and Feed
+    supabaseClient.channel('realtime-index')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rankings' }, loadRankings)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tip_logs' }, loadFeed)
       .subscribe();
 
     checkAuth();
