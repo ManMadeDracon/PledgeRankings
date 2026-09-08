@@ -43,6 +43,16 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true });
   }
 
+  // Update role (Promote or Demote)
+  if (action === 'update_role') {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role })
+      .eq('id', userId);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json({ success: true });
+  }
+
   if (action === 'delete_user') {
     const { error } = await supabase.auth.admin.deleteUser(userId);
     if (error) return res.status(500).json({ error: error.message });
