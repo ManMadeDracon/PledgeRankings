@@ -28,8 +28,47 @@ async function init() {
     setupLogsScrollListener();
     loadLogs(true);
     loadUsers();
+    loadSettings();
   }
 }
+
+// Fetch Rate Limit Settings & Update Display Text
+async function loadSettings() {
+  const res = await API.adminAction(sessionToken, 'get_settings', {});
+  if (res.success && res.settings) {
+    const { max_points_limit, time_window_hours } = res.settings;
+    
+    document.getElementById('maxPointsInput').value = max_points_limit;
+    document.getElementById('timeWindowInput').value = time_window_hours;
+    
+    document.getElementById('currentLimitDisplay').innerHTML = 
+      `<strong>Current Active Limit:</strong> Standard users can adjust up to <strong>${max_points_limit} points</strong> every <strong>${time_window_hours} hour(s)</strong>.`;
+  }
+}
+
+// Settings Form Submission Handler
+document.getElementById('settingsForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const max_points_limit = document.getElementById('maxPointsInput').value;
+  const time_window_hours = document.getElementById('timeWindowInput').value;
+
+  const res = await API.adminAction(sessionToken, 'update_settings', {
+    max_points_limit,
+    time_window_hours
+  });
+
+  const msg = document.getElementById('settingsMsg');
+  if (res.success) {
+    msg.style.color = 'green';
+    msg.innerText = 'Rate limit settings updated successfully!';
+    
+    document.getElementById('currentLimitDisplay').innerHTML = 
+      `<strong>Current Active Limit:</strong> Standard users can adjust up to <strong>${max_points_limit} points</strong> every <strong>${time_window_hours} hour(s)</strong>.`;
+  } else {
+    msg.style.color = 'red';
+    msg.innerText = res.error || 'Failed to update settings.';
+  }
+});
 
 async function loadPeople() {
   const { data } = await supabaseClient.from('rankings').select('*').order('name');
