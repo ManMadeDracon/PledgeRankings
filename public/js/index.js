@@ -29,6 +29,7 @@ async function loadFeed() {
     .from('tip_logs')
     .select('*')
     .eq('is_undone', false)
+    .eq('is_public', true) // Hides direct admin adjustments from the public feed
     .order('created_at', { ascending: false })
     .limit(15);
 

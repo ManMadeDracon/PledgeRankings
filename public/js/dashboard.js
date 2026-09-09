@@ -14,7 +14,7 @@ async function init() {
   if (!session) { window.location.href = 'login.html'; return; }
 
   sessionToken = session.access_token;
-  
+
   const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
   currentUserRole = profile?.role || 'standard';
 
@@ -42,10 +42,45 @@ async function loadPeople() {
   data?.forEach(person => {
     personMap[person.id] = person.name;
     select.innerHTML += `<option value="${person.id}">${person.name} (${person.points} pts)</option>`;
+
     if (list && currentUserRole === 'superuser') {
-      list.innerHTML += `<li>${person.name} <button onclick="removePerson(${person.id})">Remove</button></li>`;
+      const safeName = person.name.replace(/'/g, "\\'");
+      list.innerHTML += `
+        <li style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <strong>${person.name}</strong> (${person.points} pts)
+          <button onclick="renamePerson(${person.id}, '${safeName}')">Rename</button>
+          <button onclick="adjustPointsDirect(${person.id})">± Direct Points</button>
+          <button onclick="removePerson(${person.id})" style="background: #c53030;">Remove</button>
+        </li>`;
     }
   });
+}
+
+// Rename individual handler
+async function renamePerson(personId, currentName) {
+  const newName = prompt('Enter new name for ' + currentName + ':', currentName);
+  if (!newName || newName.trim() === '' || newName === currentName) return;
+
+  await API.adminAction(sessionToken, 'rename_person', { personId, newName: newName.trim() });
+  loadPeople();
+  if (currentUserRole === 'superuser') loadLogs(true);
+}
+
+// Direct point change handler (Bypasses public feed, logs to admin log)
+async function adjustPointsDirect(personId) {
+  const pointsDelta = prompt('Enter points to add (+) or subtract (-):\nExample: 5 or -10');
+  if (!pointsDelta || isNaN(pointsDelta) || parseInt(pointsDelta, 10) === 0) return;
+
+  const reason = prompt('Reason for admin log:', 'Direct Admin Adjustment');
+
+  await API.adminAction(sessionToken, 'adjust_points_direct', {
+    personId,
+    pointsDelta: parseInt(pointsDelta, 10),
+    reason: reason || 'Direct Admin Adjustment'
+  });
+
+  loadPeople();
+  if (currentUserRole === 'superuser') loadLogs(true);
 }
 
 // Paginated Logs Loader
@@ -120,7 +155,7 @@ async function loadUsers() {
   const { data } = await supabaseClient.from('profiles').select('*');
   const list = document.getElementById('usersList');
   list.innerHTML = '';
-  
+
   data?.forEach(u => {
     const nextRole = u.role === 'superuser' ? 'standard' : 'superuser';
     const buttonLabel = u.role === 'superuser' ? 'Demote to Standard' : 'Promote to Superuser';
