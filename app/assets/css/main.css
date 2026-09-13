@@ -1,0 +1,144 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme {
+  --font-display: "Julius Sans One", ui-sans-serif, system-ui, sans-serif;
+
+  /* Background "Soft bloom" shader palette, ported from Figma */
+  --color-bloom-top: #c5c6e8;
+  --color-bloom-mid: #ddc6c6;
+  --color-bloom-bottom: #f5c5a3;
+  --color-bloom-blob: #7b9cc7;
+  --color-bloom-glow: #e8955a;
+
+  --color-ink: #434343;
+  --color-ink-strong: #222222;
+  /*
+   * Figma uses #8bff73, which drops to ~1.4:1 against the light background and
+   * is unreadable in practice. Darkened to clear AA at 14px; the red is
+   * already legible so it stays at the Figma value.
+   */
+  --color-points-up: #2f8f1c;
+  --color-points-down: #ff2f2f;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-display);
+  color: var(--color-ink-strong);
+  background-color: var(--color-bloom-top);
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+
+@layer components {
+  /*
+   * Frosted panel from the Figma "Liquid Glass" style:
+   * Frost Medium = 12 (blur), plus the 15% radial darkening overlay baked
+   * into the component fill. Corner radii are asymmetric: 15 / 60 / 15 / 60.
+   */
+  .glass-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 15px 60px 15px 60px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    background:
+      radial-gradient(
+        120% 100% at 50% 50%,
+        rgba(77, 77, 77, 0.15) 0%,
+        rgba(128, 128, 128, 0.12) 50%,
+        rgba(179, 179, 179, 0.09) 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.2));
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    box-shadow:
+      0 16px 40px -12px rgba(40, 45, 90, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  }
+
+  .glass-card-title {
+    font-size: 24px;
+    line-height: 1.15;
+    color: var(--color-ink);
+    text-align: center;
+  }
+
+  /* Hairline separator between leaderboard rows, as in the mockup */
+  .rule-divider + .rule-divider {
+    border-top: 1px solid rgba(67, 67, 67, 0.22);
+  }
+
+  .field-label {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--color-ink);
+  }
+
+  .glass-input {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.45);
+    padding: 10px 12px;
+    font-size: 16px; /* >=16px stops iOS Safari zooming on focus */
+    color: var(--color-ink-strong);
+  }
+
+  .glass-input:focus {
+    outline: 2px solid rgba(123, 156, 199, 0.9);
+    outline-offset: 1px;
+  }
+
+  .glass-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px; /* comfortable touch target */
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.55);
+    padding: 10px 16px;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .glass-btn:hover {
+    background: rgba(255, 255, 255, 0.75);
+  }
+
+  .glass-btn:active {
+    transform: scale(0.98);
+  }
+
+  .glass-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .glass-btn-danger {
+    color: #a02121;
+    border-color: rgba(255, 47, 47, 0.4);
+    background: rgba(255, 47, 47, 0.12);
+  }
+
+  .glass-btn-danger:hover {
+    background: rgba(255, 47, 47, 0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
