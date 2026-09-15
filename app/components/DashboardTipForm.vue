@@ -84,16 +84,13 @@ async function onSubmit() {
       </fieldset>
 
       <div class="flex flex-col gap-1">
-        <label for="points" class="field-label">Points (negative to subtract)</label>
-        <input
+        <label for="points" class="field-label">Points (tap +/− to add or subtract)</label>
+        <PointsInput
           id="points"
-          v-model.number="points"
-          type="number"
-          inputmode="numeric"
+          v-model="points"
           required
-          class="glass-input"
-          placeholder="e.g. 10 or -5"
-        >
+          placeholder="e.g. 10"
+        />
       </div>
 
       <div class="flex flex-col gap-1">

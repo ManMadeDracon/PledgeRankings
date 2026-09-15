@@ -153,13 +153,10 @@ async function removePerson(personId: number) {
         </div>
 
         <div v-if="adjustingId === person.id" class="mt-3 flex flex-col gap-2">
-          <input
-            v-model.number="adjustDelta"
-            type="number"
-            inputmode="numeric"
-            class="glass-input"
-            placeholder="Points to add (+) or subtract (−)"
-          >
+          <PointsInput
+            v-model="adjustDelta"
+            placeholder="Points to add or subtract"
+          />
           <input v-model="adjustReason" type="text" class="glass-input" placeholder="Reason for admin log">
           <p class="text-[12px] text-ink">
             Direct changes are logged privately and stay out of the public feed.
