@@ -23,6 +23,11 @@ export function useApi() {
     token.value ? { Authorization: `Bearer ${token.value}` } : {}
 
   return {
+    getUserLimits: () =>
+      $fetch<UserLimits>('/api/user-limits', {
+        headers: authHeaders(),
+      }),
+      
     submitTip: (body: SubmitTipBody) =>
       $fetch<{ success: true }>('/api/submit-tip', {
         method: 'POST',
